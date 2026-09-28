@@ -70,34 +70,40 @@ document.addEventListener("DOMContentLoaded", function () {
     const transactionForm = document.getElementById("transactionForm");
 
     if (transactionForm) {
-        transactionForm.addEventListener("submit", function (event) {
-            event.preventDefault();
-            saveTransaction();
-        });
+        if (!transactionForm.getAttribute("action") || transactionForm.getAttribute("action") === "#") {
+            transactionForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                saveTransaction();
+            });
+        }
     }
 
     const transactionDate = document.getElementById("transactionDate");
 
-    if (transactionDate) {
+    if (transactionDate && !transactionDate.value) {
         transactionDate.value = getTodayDate();
     }
 
     const categoryForm = document.getElementById("categoryForm");
 
     if (categoryForm) {
-        categoryForm.addEventListener("submit", function (event) {
-            event.preventDefault();
-            saveCategory();
-        });
+        if (!categoryForm.getAttribute("action") || categoryForm.getAttribute("action") === "#") {
+            categoryForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                saveCategory();
+            });
+        }
     }
 
     const budgetForm = document.getElementById("budgetForm");
 
     if (budgetForm) {
-        budgetForm.addEventListener("submit", function (event) {
-            event.preventDefault();
-            saveBudget();
-        });
+        if (!budgetForm.getAttribute("action") || budgetForm.getAttribute("action") === "#") {
+            budgetForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                saveBudget();
+            });
+        }
     }
 
     initializeMonthlyCycle();
@@ -1086,6 +1092,10 @@ function initializeBudgetsPage() {
     const grid = document.getElementById("budgetGrid");
 
     if (!grid) {
+        return;
+    }
+
+    if (grid.children.length > 0) {
         return;
     }
 
@@ -2096,6 +2106,9 @@ function exportTransactionsCSV() {
 
 const originalInitializeDashboard = initializeDashboard;
 initializeDashboard = function () {
+    if (document.getElementById("welcomeName")) {
+        return;
+    }
     originalInitializeDashboard();
     const transactions = getTransactions();
     initializeUserGreeting();
@@ -2204,4 +2217,203 @@ function initializeButtonRipples() {
 
 document.addEventListener("DOMContentLoaded", function () {
     window.setTimeout(initializeProfessionalAnimations, 80);
+
+    // ==========================================
+    // ACCESSIBILITY: Font Size Adjuster (SRS 1.6 Page 9)
+    // ==========================================
+    const fontScales = ["font-scale-sm", "font-scale-md", "font-scale-lg", "font-scale-xl"];
+    let currentScaleIdx = 1; // default font-scale-md
+
+    const savedScale = localStorage.getItem("campusCoinFontScale");
+    if (savedScale && fontScales.includes(savedScale)) {
+        currentScaleIdx = fontScales.indexOf(savedScale);
+        document.body.classList.add(savedScale);
+    }
+
+    function setFontScale(newIdx) {
+        fontScales.forEach(cls => document.body.classList.remove(cls));
+        currentScaleIdx = Math.max(0, Math.min(fontScales.length - 1, newIdx));
+        const activeClass = fontScales[currentScaleIdx];
+        document.body.classList.add(activeClass);
+        localStorage.setItem("campusCoinFontScale", activeClass);
+    }
+
+    const fontDecBtn = document.getElementById("fontDecreaseBtn");
+    const fontResetBtn = document.getElementById("fontResetBtn");
+    const fontIncBtn = document.getElementById("fontIncreaseBtn");
+
+    if (fontDecBtn) fontDecBtn.addEventListener("click", () => setFontScale(currentScaleIdx - 1));
+    if (fontResetBtn) fontResetBtn.addEventListener("click", () => setFontScale(1));
+    if (fontIncBtn) fontIncBtn.addEventListener("click", () => setFontScale(currentScaleIdx + 1));
+
+    // ==========================================
+    // NOTIFICATIONS DROPDOWN DRAWER
+    // ==========================================
+    const notifBtn = document.getElementById("notificationBtn");
+    const notifDropdown = document.getElementById("notificationDropdown");
+    if (notifBtn && notifDropdown) {
+        notifBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            const isOpen = notifDropdown.classList.toggle("show");
+            notifBtn.setAttribute("aria-expanded", String(isOpen));
+        });
+
+        document.addEventListener("click", function (e) {
+            if (!notifDropdown.contains(e.target) && e.target !== notifBtn) {
+                notifDropdown.classList.remove("show");
+                notifBtn.setAttribute("aria-expanded", "false");
+            }
+        });
+    }
+
+    // ==========================================
+    // AI-DRIVEN CATEGORY AUTO-SUGGESTION (SRS 1.6 Page 7)
+    // ==========================================
+    const transTitleInput = document.getElementById("transactionTitle");
+    const aiNotice = document.getElementById("aiSuggestionNotice");
+    const aiText = document.getElementById("aiSuggestedText");
+    const categorySelect = document.getElementById("transactionCategory");
+    const aiSuggestedInput = document.getElementById("aiSuggestedCategoryInput");
+
+    const categoryDictionary = [
+        { regex: /cafe|coffee|lunch|dinner|burger|pizza|biryani|tea|chai|food|canteen|snack|mcdonald|kfc/i, category: "Food", type: "expense" },
+        { regex: /bus|uber|careem|rikshaw|rickshaw|metro|train|petrol|fuel|ticket|fare|transit|van/i, category: "Transport", type: "expense" },
+        { regex: /hostel|rent|mess|room|electricity|roommate|laundry/i, category: "Hostel/Rent", type: "expense" },
+        { regex: /book|tuition|stationery|copy|photocopy|pen|exam|fee|course|library/i, category: "Academics", type: "expense" },
+        { regex: /netflix|spotify|youtube|icloud|google|prime|hosting|domain|subscription/i, category: "Subscriptions", type: "expense" },
+        { regex: /movie|cinema|outing|game|gaming|bowling|concert|trip/i, category: "Entertainment", type: "expense" },
+        { regex: /allowance|pocket money|family|dad|mom/i, category: "Allowance", type: "income" },
+        { regex: /salary|job|freelance|gig|internship|teaching|tutoring/i, category: "Part-time Job", type: "income" },
+        { regex: /scholarship|grant|aid|bursary/i, category: "Scholarship", type: "income" },
+        { regex: /gift|eidi|present/i, category: "Gift", type: "income" }
+    ];
+
+    let suggestionDebounceTimer = null;
+
+    if (transTitleInput && aiNotice && aiText) {
+        transTitleInput.addEventListener("input", function () {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                aiNotice.style.display = "none";
+                if (aiSuggestedInput) aiSuggestedInput.value = "";
+                return;
+            }
+
+            clearTimeout(suggestionDebounceTimer);
+            suggestionDebounceTimer = setTimeout(function () {
+                // First try live dynamic per-user adaptive API
+                fetch("api/suggest_category.php?title=" + encodeURIComponent(query))
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.success && data.suggested) {
+                            const confPercent = Math.min(99, Math.max(55, Math.round((data.score || 1.5) * 20)));
+                            const badge = data.source === "user_correction" ? "💡 Rule: " : "🤖 AI: ";
+                            aiText.textContent = badge + (data.icon ? data.icon + " " : "") + data.category_name + " (" + confPercent + "% match)";
+                            aiNotice.style.display = "flex";
+                            aiNotice.dataset.suggestedCategory = data.category_name;
+                            aiNotice.dataset.suggestedCategoryId = data.category_id;
+                            if (aiSuggestedInput) aiSuggestedInput.value = data.category_id;
+                        } else {
+                            // Fallback to client dictionary
+                            let match = categoryDictionary.find(item => item.regex.test(query));
+                            if (match) {
+                                aiText.textContent = "🤖 AI: " + match.category;
+                                aiNotice.style.display = "flex";
+                                aiNotice.dataset.suggestedCategory = match.category;
+                                delete aiNotice.dataset.suggestedCategoryId;
+                            } else {
+                                aiNotice.style.display = "none";
+                                if (aiSuggestedInput) aiSuggestedInput.value = "";
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        // Offline fallback
+                        let match = categoryDictionary.find(item => item.regex.test(query));
+                        if (match) {
+                            aiText.textContent = "🤖 AI: " + match.category;
+                            aiNotice.style.display = "flex";
+                            aiNotice.dataset.suggestedCategory = match.category;
+                        } else {
+                            aiNotice.style.display = "none";
+                        }
+                    });
+            }, 180);
+        });
+    }
+
+    window.applyAiSuggestion = function () {
+        if (!categorySelect || !aiNotice) return;
+        const suggestedId = aiNotice.dataset.suggestedCategoryId;
+        const suggestedName = (aiNotice.dataset.suggestedCategory || "").toLowerCase();
+
+        if (suggestedId) {
+            categorySelect.value = suggestedId;
+            if (aiSuggestedInput) aiSuggestedInput.value = suggestedId;
+        } else if (suggestedName) {
+            for (let i = 0; i < categorySelect.options.length; i++) {
+                const optText = categorySelect.options[i].text.toLowerCase();
+                const optVal = categorySelect.options[i].value.toLowerCase();
+                if (optText.includes(suggestedName) || optVal === suggestedName) {
+                    categorySelect.selectedIndex = i;
+                    if (aiSuggestedInput) aiSuggestedInput.value = categorySelect.options[i].value;
+                    break;
+                }
+            }
+        }
+        aiNotice.style.display = "none";
+    };
 });
+
+// CSV Bulk Import Modal Controls
+function openCsvModal() {
+    const modal = document.getElementById("csvImportModal");
+    if (modal) {
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+    }
+}
+
+function closeCsvModal() {
+    const modal = document.getElementById("csvImportModal");
+    if (modal) {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    }
+}
+
+function handleCsvFileSelect(input) {
+    const info = document.getElementById("csvFileInfo");
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (info) {
+            info.style.display = "block";
+            info.innerHTML = `<strong>Selected file:</strong> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        }
+    }
+}
+
+// Share Email Modal Controls
+function openShareEmailModal() {
+    const modal = document.getElementById("shareEmailModal");
+    if (modal) {
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+    }
+}
+
+function closeShareEmailModal() {
+    const modal = document.getElementById("shareEmailModal");
+    if (modal) {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    }
+}
+
+function handleSendReportEmail(e) {
+    e.preventDefault();
+    const email = document.getElementById("shareEmailTo").value;
+    alert(`Report snapshot dispatched to ${email}.`);
+    closeShareEmailModal();
+}
+

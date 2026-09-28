@@ -1,22 +1,26 @@
 <?php
-session_start();
-
-$demoEmail = 'student@campuscoin.com';
-$demoPassword = '123456';
-
-function requireLogin()
-{
-    if (!isset($_SESSION['campus_coin_logged_in']) || $_SESSION['campus_coin_logged_in'] !== true) {
-        header('Location: login.php');
-        exit;
-    }
+if (!defined('CAMPUS_COIN_BOOTSTRAP')) {
+    define('CAMPUS_COIN_BOOTSTRAP', true);
 }
 
-function requireAdmin()
-{
-    if (!isset($_SESSION['campus_coin_admin']) || $_SESSION['campus_coin_admin'] !== true) {
-        header('Location: login.php');
-        exit;
-    }
+// Start secure session if not started
+if (session_status() === PHP_SESSION_NONE) {
+    // Session security parameters
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    ini_set('session.cookie_samesite', 'Lax');
+
+    session_start();
 }
-?>
+
+// Require PDO database connection
+require_once __DIR__ . '/config/database.php';
+
+// Require helper functions (CSRF, escaping, authentication)
+require_once __DIR__ . '/includes/functions.php';
+
+// Require adaptive AI category learning engine
+require_once __DIR__ . '/includes/ai_learning.php';
+
+// Pre-initialize CSRF token
+generateCsrfToken();
